@@ -7,7 +7,6 @@ export function limitConcurrentStreams(req: Request, res: Response, next: NextFu
   try {
     const userIP = req.ip || "";
     
-    // Fixed the IP check - it was incorrectly returning early if IP exists
     if(!userIP) {
       res.status(400).send('Could not identify client IP');
       return;
@@ -16,7 +15,7 @@ export function limitConcurrentStreams(req: Request, res: Response, next: NextFu
     if (!activeStreams[userIP]) activeStreams[userIP] = 0;
 
     if (activeStreams[userIP] >= 2) {
-      res.status(429).send('Too many concurrent streams');
+      res.status(429).send('Too many concurrent streams, are yo tryna scrape?');
       return;
     }
 
