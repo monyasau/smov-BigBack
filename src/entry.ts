@@ -36,7 +36,7 @@ app.get(
 */
 
 app.get(
-    "/ee3_test",
+    "/ee3",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
         const tmdb_id = req.query.tmdb_id as string;
@@ -66,6 +66,8 @@ app.get(
         }
 
         res.setHeaders(response.headers);
+
+        res.setHeader("content-type", "video/mp4");
 
         res.status(response.status);
 
