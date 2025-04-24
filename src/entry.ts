@@ -6,6 +6,9 @@ import { limitConcurrentStreams } from "./limiter";
 
 import sources from "./providers/all";
 
+import dotenv from "dotenv";
+dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -47,6 +50,13 @@ app.get(
             tmdb_id,
             req.headers.range || "bytes=0-"
         );
+
+        if (!response) {
+            res.status(500).send(
+                `Failed to fetch media, Tell the site owner to check the console.`
+            );
+            return;
+        }
 
         if (!response.ok || !response.body) {
             res.status(response.status).send(

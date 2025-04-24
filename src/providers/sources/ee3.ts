@@ -45,10 +45,11 @@ async function fetch_movie(id: string, ee3_auth: string) {
 }
 
 async function scrape(tmdb_id: string, range: string) {
-    var mov_data = await fetch_movie(
-        tmdb_id,
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJfcGJfdXNlcnNfYXV0aF8iLCJleHAiOjE3NDY2MjI4MDksImlkIjoiMDRzOHRtYXczMHpyYnFqIiwidHlwZSI6ImF1dGhSZWNvcmQifQ.tVDJxT45eIBmSWHcV22xvL6DEqqlZt4uZVwoTDF-Gy4"
-    );
+    if (!process.env.EE3_AUTH) {
+        console.log("No EE3 auth key found");
+        return;
+    }
+    var mov_data = await fetch_movie(tmdb_id, process.env.EE3_AUTH);
 
     return await fetch(`https://borg.rips.cc/video/${mov_data}`, {
         headers: { Origin: "https://ee3.me", Range: range },
