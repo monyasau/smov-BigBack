@@ -44,14 +44,14 @@ async function fetch_movie(id: string, ee3_auth: string) {
     return `${movie_id}?k=${key}`;
 }
 
-async function scrape(tmdb_id: string) {
+async function scrape(tmdb_id: string, range: string) {
     var mov_data = await fetch_movie(
         tmdb_id,
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJfcGJfdXNlcnNfYXV0aF8iLCJleHAiOjE3NDY2MjI4MDksImlkIjoiMDRzOHRtYXczMHpyYnFqIiwidHlwZSI6ImF1dGhSZWNvcmQifQ.tVDJxT45eIBmSWHcV22xvL6DEqqlZt4uZVwoTDF-Gy4"
     );
 
     return await fetch(`https://borg.rips.cc/video/${mov_data}`, {
-        headers: { Origin: "https://ee3.me" },
+        headers: { Origin: "https://ee3.me", Range: range },
     });
 }
 

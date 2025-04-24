@@ -43,7 +43,10 @@ app.get(
             return;
         }
 
-        const response = await sources.ee3(tmdb_id);
+        const response = await sources.ee3(
+            tmdb_id,
+            req.headers.range || "bytes=0-"
+        );
 
         if (!response.ok || !response.body) {
             res.status(response.status).send(
@@ -52,14 +55,9 @@ app.get(
             return;
         }
 
-        res.setHeader("Content-Type", "video/mp4");
+        res.setHeaders(response.headers);
 
-        const contentLength = response.headers.get("content-length");
-        if (contentLength) {
-            res.setHeader("Content-Length", contentLength);
-        }
-
-        res.setHeader("Content-Disposition", "inline");
+        res.status(response.status);
 
         const reader = response.body.getReader();
         const stream = new Readable({
