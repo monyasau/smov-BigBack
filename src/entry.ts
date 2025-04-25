@@ -11,6 +11,7 @@ dotenv.config();
 
 import { pipe } from "./pipe";
 import path from "path";
+import { USER_AGENT } from "./globals";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,7 +71,7 @@ app.get(
             const response = await fetch(parsedUrl.toString(), {
                 method: "GET",
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (compatible; ProxyServer/1.0)",
+                    "User-Agent": USER_AGENT,
                     Referer: referer || parsedUrl.origin,
                     Origin: origin || parsedUrl.origin,
                 },
