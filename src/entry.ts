@@ -4,39 +4,24 @@ import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
 
-import sources from "./providers/all";
+import { scrape } from "./providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();
 
+import { pipe } from "./pipe";
+import path from "path";
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/*
-app.get(
-    "/scrape",
-    limitConcurrentStreams,
-    async (req: Request, res: Response): Promise<void> => {
-        const tmdb_key = req.query.tmdb_key as string;
-        const tmdb_id = req.query.tmdb_id as string;
-
-        if (!tmdb_key) {
-            res.status(400).send('Missing "url" query parameter.');
-            return;
-        }
-
-        if (!tmdb_id) {
-            res.status(400).send('Missing "url" query parameter.');
-            return;
-        }
-
-        
-    }
-);
-*/
+app.get("/watch", async (req: Request, res: Response): Promise<void> => {
+    const filePath = path.join(__dirname, "pages", "watch.html");
+    res.status(200).sendFile(filePath);
+});
 
 app.get(
-    "/ee3",
+    "/movie",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
         const tmdb_id = req.query.tmdb_id as string;
@@ -46,56 +31,33 @@ app.get(
             return;
         }
 
-        const response = await sources.ee3(
-            tmdb_id,
-            req.headers.range || "bytes=0-"
-        );
+        let src = await scrape(tmdb_id, req);
 
-        if (!response) {
-            res.status(500).send(
-                `Failed to fetch media, Tell the site owner to check the console.`
+        if (!src) {
+            res.status(404).send(
+                "Unable to find a movie with the provided id."
             );
             return;
         }
 
-        if (!response.ok || !response.body) {
-            res.status(response.status).send(
-                `Failed to fetch media: ${response.statusText}`
-            );
+        if (typeof src === "string") {
+            res.redirect(302, src);
             return;
         }
 
-        res.setHeaders(response.headers);
-
-        res.setHeader("content-type", "video/mp4");
-
-        res.status(response.status);
-
-        const reader = response.body.getReader();
-        const stream = new Readable({
-            async read() {
-                try {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        this.push(null);
-                    } else {
-                        this.push(value);
-                    }
-                } catch (err) {
-                    this.destroy(err as Error);
-                }
-            },
-        });
-
-        stream.pipe(res);
+        pipe(req, res, src);
     }
 );
+
+const MAX_SIZE = 5 * 1024 * 1024;
 
 app.get(
     "/proxy",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
         const targetUrl = req.query.url as string;
+        const origin = req.query.org as string;
+        const referer = req.query.ref as string;
 
         if (!targetUrl) {
             res.status(400).send('Missing "url" query parameter.');
@@ -109,7 +71,8 @@ app.get(
                 method: "GET",
                 headers: {
                     "User-Agent": "Mozilla/5.0 (compatible; ProxyServer/1.0)",
-                    Referer: parsedUrl.origin,
+                    Referer: referer || parsedUrl.origin,
+                    Origin: origin || parsedUrl.origin,
                 },
             });
 
@@ -131,6 +94,8 @@ app.get(
                 res.setHeader("Content-Length", contentLength);
             }
 
+            let totalBytes = 0;
+
             const reader = response.body.getReader();
             const stream = new Readable({
                 async read() {
@@ -138,13 +103,27 @@ app.get(
                         const { done, value } = await reader.read();
                         if (done) {
                             this.push(null);
-                        } else {
-                            this.push(value);
+                            return;
                         }
+
+                        totalBytes += value.length;
+
+                        if (totalBytes > MAX_SIZE) {
+                            this.destroy(
+                                new Error("Data limit exceeded (5MB).")
+                            );
+                            return;
+                        }
+
+                        this.push(value);
                     } catch (err) {
                         this.destroy(err as Error);
                     }
                 },
+            });
+
+            stream.on("error", (err) => {
+                res.destroy(err as Error);
             });
 
             stream.pipe(res);
