@@ -11,8 +11,10 @@ async function fetch_nas(id: string, User_Agent: string) {
         },
     });
     let json = await resp.json();
-    let quality = json.get("available_qualities")[0];
-    return json.get("streams").get(quality);
+    let quality = json["available_qualities"][0];
+    let link = json["streams"][quality];
+
+    return link;
 }
 
 async function fetch_prime(id: string, User_Agent: string) {
@@ -22,8 +24,11 @@ async function fetch_prime(id: string, User_Agent: string) {
         },
     });
     let json = await resp.json();
-    let quality = json.get("available_qualities")[0];
-    return json.get("streams").get(quality);
+
+    let quality = json["available_qualities"][0];
+    let link = json["streams"][quality];
+
+    return link;
 }
 
 async function scrape(id: string, req: Request) {
@@ -32,10 +37,11 @@ async function scrape(id: string, req: Request) {
     let prime_fetcher = () =>
         fetch_prime(id, req.headers["user-agent"] || USER_AGENT);
 
-    const fastest = firstTruthy([nas_fetcher, prime_fetcher]);
+    const fastest = await firstTruthy([nas_fetcher, prime_fetcher]);
+    console.log(fastest);
 
     try {
-        return await fastest;
+        return fastest;
     } catch (error) {
         return;
     }
