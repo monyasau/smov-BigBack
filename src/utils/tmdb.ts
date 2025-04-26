@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 export async function getExternalIds(tmdbId: number): Promise<any> {
