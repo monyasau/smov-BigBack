@@ -10,7 +10,7 @@ export async function scrape(tmdb_id: string, req: Request) {
         return "https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_2mb.mp4";
     }
 
-    const fastest = firstTruthy([fetchXprime]);
+    const fastest = firstTruthy([fetchXprime, fetchEE3]);
 
     try {
         return await fastest;
