@@ -1,16 +1,18 @@
 import { Request, Response } from "express";
 import sources from "./all";
 import firstTruthy from "../utils/first_truthy";
-import { JsonLock } from "../utils/lock";
 import { promises as fs } from "fs";
-
-const jsonLock = new JsonLock();
+import { jsonLock } from "../globals";
 
 export async function scrape(
     tmdb_id: string,
     req: Request
 ): Promise<string | globalThis.Response | undefined> {
-    const fetchEE3 = () => sources.ee3(tmdb_id, req);
+    const fetchEE3 = () =>
+        sources.ee3(tmdb_id, {
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        });
     const fetchXprime = () => sources.xprime(tmdb_id, req);
     const fetchCache = async () => {
         const json = await jsonLock.withLock("./cache/index.json", async () => {

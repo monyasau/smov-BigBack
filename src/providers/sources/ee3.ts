@@ -54,7 +54,10 @@ async function fetch_movie(id: string, ee3_auth: string, User_Agent: string) {
     return `${movie_id}?k=${key}`;
 }
 
-async function scrape(tmdb_id: string, req: Request) {
+async function scrape(
+    tmdb_id: string,
+    options?: { user_agent?: string; range?: string }
+) {
     if (!process.env.EE3_AUTH) {
         console.log("No EE3 auth key found");
         return;
@@ -62,16 +65,22 @@ async function scrape(tmdb_id: string, req: Request) {
     var mov_data = await fetch_movie(
         tmdb_id,
         process.env.EE3_AUTH,
-        req.headers["user-agent"] || USER_AGENT
+        options?.user_agent || USER_AGENT
     );
 
-    return await fetch(`https://borg.rips.cc/video/${mov_data}`, {
+    const res = await fetch(`https://borg.rips.cc/video/${mov_data}`, {
         headers: {
-            "User-Agent": req.headers["user-agent"] || USER_AGENT,
+            "User-Agent": options?.user_agent || USER_AGENT,
             Origin: "https://ee3.me",
-            Range: req.headers.range || "bytes=0-",
+            Range: options?.range || "bytes=0-",
         },
     });
+
+    if (res.status >= 200 && res.status < 300) {
+        return res;
+    }
+
+    return;
 }
 
 export = scrape;
