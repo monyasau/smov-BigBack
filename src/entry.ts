@@ -3,6 +3,8 @@ import { createServer } from "http";
 import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
+import { promises as fs } from "fs";
+import fs_root from "fs";
 
 import { scrape } from "./providers/scrape";
 
@@ -12,9 +14,50 @@ dotenv.config();
 import { pipe } from "./pipe";
 import path from "path";
 import { USER_AGENT } from "./globals";
+import { JsonLock } from "./utils/lock";
+import { handleVideoRequest } from "./utils/stream_helpers";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const jsonLock = new JsonLock("./tmp/locks");
+
+app.get("/lock", async (req: Request, res: Response): Promise<void> => {
+    try {
+        await jsonLock.acquire("./cache/index.json");
+    } catch (err) {
+        res.status(500).send(`Failed to acquire lock: ${err}`);
+        return;
+    }
+    res.status(200).send("Acquired lock!");
+});
+
+app.get("/unlock", async (req: Request, res: Response): Promise<void> => {
+    try {
+        await jsonLock.release("./cache/index.json");
+    } catch (err) {
+        res.status(500).send(`Failed to release lock: ${err}`);
+        return;
+    }
+    res.status(200).send("Released lock!");
+});
+
+app.get("/action", async (req: Request, res: Response): Promise<void> => {
+    try {
+        await jsonLock.acquire("./cache/index.json");
+    } catch (err) {
+        res.status(500).send("File is locked.");
+        return;
+    }
+
+    const raw = await fs.readFile("./cache/index.json", "utf8");
+    let data = JSON.parse(raw);
+    data["10191"] = "movies/httyd.mp4";
+    await fs.writeFile("./cache/index.json", JSON.stringify(data));
+
+    jsonLock.release("./cache/index.json");
+
+    res.status(200).send("Did the action");
+});
 
 app.get("/watch", async (req: Request, res: Response): Promise<void> => {
     const filePath = path.join(__dirname, "pages", "watch.html");
@@ -34,6 +77,8 @@ app.get(
 
         let src = await scrape(tmdb_id, req);
 
+        console.log(src);
+
         if (!src) {
             res.status(404).send(
                 "Unable to find a movie with the provided id."
@@ -41,12 +86,7 @@ app.get(
             return;
         }
 
-        if (typeof src === "string") {
-            res.redirect(302, src);
-            return;
-        }
-
-        pipe(req, res, src);
+        handleVideoRequest(req, res, src);
     }
 );
 

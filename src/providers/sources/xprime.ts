@@ -38,7 +38,6 @@ async function scrape(id: string, req: Request) {
         fetch_prime(id, req.headers["user-agent"] || USER_AGENT);
 
     const fastest = await firstTruthy([nas_fetcher, prime_fetcher]);
-    console.log(fastest);
 
     try {
         return fastest;
