@@ -25,7 +25,6 @@ export async function fetch_primebox(
 
     try {
         let json = await resp.json();
-        console.log(json);
         let qualities = json["available_qualities"];
         let links = json["streams"];
         return { qualities: qualities, sources: links };
