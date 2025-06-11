@@ -1,50 +1,55 @@
 import { Request, Response } from "express";
 import { USER_AGENT } from "../../globals";
-import { getExternalIds } from "../../utils/tmdb";
+import { getExternalIds, getMovieDetails } from "../../utils/tmdb";
 import firstTruthy from "../../utils/first_truthy";
+import { ScrapeResult } from "../../utils/types";
 
-export async function fetch_nas(id: string, User_Agent?: string) {
-    let imdb_id = (await getExternalIds(Number(id))).imdb_id;
-    let resp = await fetch(`https://xprime.tv/nas?imdb=${imdb_id}`, {
-        headers: {
-            "User-Agent": User_Agent || USER_AGENT,
-        },
-    });
+export async function fetch_primebox(
+    id: string,
+    User_Agent?: string
+): Promise<ScrapeResult> {
+    let external_ids = await getExternalIds(Number(id));
+    let movie_data = await getMovieDetails(external_ids.id);
+
+    let name = movie_data.original_title;
+    let year = movie_data.release_date.slice(0, 4);
+    let imdb = external_ids.imdb_id;
+    let resp = await fetch(
+        `https://backend.xprime.tv/primebox?name=${name}&year=${year}&id=${id}&imdb=${imdb}`,
+        {
+            headers: {
+                "User-Agent": User_Agent || USER_AGENT,
+            },
+        }
+    );
 
     try {
         let json = await resp.json();
-        let quality = json["available_qualities"][0];
-        let link = json["streams"][quality];
-        return link;
+        let qualities = json["available_qualities"];
+        let links = json["streams"];
+        return { qualities: qualities, sources: links };
     } catch (err) {
         return;
     }
 }
 
-export async function fetch_prime(id: string, User_Agent?: string) {
-    let resp = await fetch(`https://xprime.tv/primebox?id=${id}`, {
+export async function fetch_primenet(id: string, User_Agent?: string) {
+    // M3U8, i wont touch m3u8. Fuck m3u8.
+    let resp = await fetch(`https://backend.xprime.tv/primenet?id=${id}`, {
         headers: {
             "User-Agent": User_Agent || USER_AGENT,
         },
     });
-
-    try {
-        let json = await resp.json();
-        let quality = json["available_qualities"][0];
-        let link = json["streams"][quality];
-        return link;
-    } catch (err) {
-        return;
-    }
 }
 
-export async function scrape_all(id: string, req: Request) {
-    let nas_fetcher = () =>
-        fetch_nas(id, req.headers["user-agent"] || USER_AGENT);
-    let prime_fetcher = () =>
-        fetch_prime(id, req.headers["user-agent"] || USER_AGENT);
+export async function scrape_all(
+    id: string,
+    req: Request
+): Promise<ScrapeResult> {
+    let primebox_fetcher = () =>
+        fetch_primebox(id, req.headers["user-agent"] || USER_AGENT);
 
-    const fastest = await firstTruthy([nas_fetcher, prime_fetcher]);
+    const fastest = await firstTruthy([primebox_fetcher]);
 
     try {
         return fastest;

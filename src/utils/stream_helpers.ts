@@ -3,15 +3,14 @@ import fs from "fs";
 import path from "path";
 import { pipe } from "../pipe";
 
-export function handleVideoRequest(
+export async function handleVideoRequest(
     req: Request,
     res: Response,
     src: string | globalThis.Response
-): void {
+): Promise<void> {
     if (typeof src === "string") {
         if (src.startsWith("file:")) {
             const filePath = path.resolve("./", src.substring(7)); // Properly remove "file://"
-            console.log("Streaming file:", filePath);
 
             fs.stat(filePath, (err, stats) => {
                 if (err) {
@@ -23,7 +22,7 @@ export function handleVideoRequest(
                 const range = req.headers.range || "bytes=0-";
 
                 const videoSize = stats.size;
-                const CHUNK_SIZE = 10 ** 6; // 1MB
+                const CHUNK_SIZE = videoSize;
                 const start = Number(range.replace(/\D/g, ""));
                 const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
 
@@ -44,6 +43,7 @@ export function handleVideoRequest(
                 videoStream.pipe(res);
             });
         } else {
+            //pipe(req, res, await fetch(src));
             res.redirect(302, src);
         }
         return;

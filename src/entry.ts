@@ -13,35 +13,50 @@ dotenv.config();
 import path from "path";
 import { jsonLock, USER_AGENT } from "./globals";
 import { handleVideoRequest } from "./utils/stream_helpers";
-import { cache_movie } from "./utils/cache_updater";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-app.get("/cache", async (req: Request, res: Response): Promise<void> => {
-    var success = await cache_movie("10191");
-    res.status(200).send(success);
-});
 
 app.get("/watch", async (req: Request, res: Response): Promise<void> => {
     const filePath = path.join(__dirname, "pages", "watch.html");
     res.status(200).sendFile(filePath);
 });
 
+app.get("/movie_new/:id/:quality", limitConcurrentStreams, (req, res) => {
+    const { id, quality } = req.params;
+    res.status(200).send(`ID: ${id}, QUALITY: ${quality}`);
+});
 app.get(
-    "/movie",
+    "/movie/:tmdb_id/",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
-        const tmdb_id = req.query.tmdb_id as string;
+        const { tmdb_id, requested_quality } = req.params;
 
         if (!tmdb_id) {
             res.status(400).send('Missing "tmdb_id" query parameter.');
             return;
         }
 
-        let src = await scrape(tmdb_id, req);
+        let scrapeResult = await scrape(tmdb_id, req);
 
-        console.log(src);
+        if (!scrapeResult) {
+            res.status(404).send("Media stream not found!");
+            return;
+        }
+
+        /*const quality = requested_quality || scrapeResult.qualities[0];
+
+        if (!scrapeResult.qualities.includes(quality)) {
+            res.status(404).send(
+                `Unable to find requested quality. We currently only have the following qualities: ${scrapeResult.qualities}`
+            );
+            return;
+        }
+        */
+
+        const src = scrapeResult.sources[scrapeResult.qualities[0]];
+
+        //console.log(src);
 
         if (!src) {
             res.status(404).send(
