@@ -43,8 +43,13 @@ export async function handleVideoRequest(
                 videoStream.pipe(res);
             });
         } else {
-            //pipe(req, res, await fetch(src));
-            res.redirect(302, src);
+            pipe(
+                req,
+                res,
+                await fetch(src, {
+                    headers: { Range: req.headers?.range || "bytes=0-" },
+                })
+            );
         }
         return;
     }

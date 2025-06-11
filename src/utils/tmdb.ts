@@ -20,7 +20,7 @@ export async function getExternalIds(tmdbId: number): Promise<ExternalIds> {
 }
 
 export async function getMovieDetails(tmdbId: number): Promise<MovieDetails> {
-    const url = `${TMDB_BASE_URL}/tv/${tmdbId}`;
+    const url = `${TMDB_BASE_URL}/movie/${tmdbId}`;
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${process.env.TMDB_KEY}` },
     });
