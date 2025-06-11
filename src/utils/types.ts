@@ -70,6 +70,78 @@ export interface MovieDetails {
     [key: string]: any;
 }
 
+interface Network {
+    name: string;
+    id: number;
+    logo_path: string | null;
+    origin_country: string;
+}
+
+interface CreatedBy {
+    id: number;
+    credit_id: string;
+    name: string;
+    gender: number | null;
+    profile_path: string | null;
+}
+
+interface LastEpisodeToAir {
+    air_date: string; // e.g. "2020-05-03"
+    episode_number: number;
+    id: number;
+    name: string;
+    overview: string;
+    production_code: string;
+    season_number: number;
+    still_path: string | null;
+    vote_average: number;
+    vote_count: number;
+}
+
+interface Season {
+    air_date: string | null;
+    episode_count: number;
+    id: number;
+    name: string;
+    overview: string;
+    poster_path: string | null;
+    season_number: number;
+}
+
+export interface TvDetails {
+    backdrop_path: string | null;
+    created_by: CreatedBy[];
+    episode_run_time: number[]; // typical runtime(s) in minutes
+    first_air_date: string; // e.g. "2008-09-22"
+    genres: Genre[];
+    homepage: string | null;
+    id: number;
+    in_production: boolean;
+    languages: string[]; // e.g. ["en"]
+    last_air_date: string; // most recent air date
+    last_episode_to_air: LastEpisodeToAir;
+    name: string; // show title
+    next_episode_to_air: LastEpisodeToAir | null;
+    networks: Network[];
+    number_of_episodes: number;
+    number_of_seasons: number;
+    origin_country: string[]; // e.g. ["US"]
+    original_language: string;
+    original_name: string;
+    overview: string | null;
+    popularity: number;
+    poster_path: string | null;
+    production_companies: ProductionCompany[];
+    seasons: Season[];
+    status: string; // e.g. "Ended", "Returning Series"
+    tagline: string | null;
+    type: string; // e.g. "Scripted"
+    vote_average: number;
+    vote_count: number;
+    // fallback for any extra fields
+    [key: string]: any;
+}
+
 export interface ExternalIds {
     id: number;
     imdb_id: string;

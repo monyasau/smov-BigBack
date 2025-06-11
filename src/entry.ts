@@ -3,9 +3,9 @@ import { createServer } from "http";
 import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
-import { promises as fs } from "fs";
 
-import { scrape } from "./movie_providers/scrape";
+import { scrape as scrape_mov } from "./movie_providers/scrape";
+import { scrape as scrape_show } from "./show_providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -22,22 +22,71 @@ app.get("/watch", async (req: Request, res: Response): Promise<void> => {
     res.status(200).sendFile(filePath);
 });
 
-app.get("/movie_new/:id/:quality", limitConcurrentStreams, (req, res) => {
-    const { id, quality } = req.params;
-    res.status(200).send(`ID: ${id}, QUALITY: ${quality}`);
-});
 app.get(
     "/movie/:tmdb_id/",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
-        const { tmdb_id, requested_quality } = req.params;
+        const { tmdb_id } = req.params;
 
         if (!tmdb_id) {
             res.status(400).send('Missing "tmdb_id" query parameter.');
             return;
         }
 
-        let scrapeResult = await scrape(tmdb_id, req);
+        let scrapeResult = await scrape_mov(tmdb_id, req);
+
+        if (!scrapeResult) {
+            res.status(404).send("Media stream not found!");
+            return;
+        }
+
+        /*const quality = requested_quality || scrapeResult.qualities[0];
+
+        if (!scrapeResult.qualities.includes(quality)) {
+            res.status(404).send(
+                `Unable to find requested quality. We currently only have the following qualities: ${scrapeResult.qualities}`
+            );
+            return;
+        }
+        */
+
+        const src = scrapeResult.sources[scrapeResult.qualities[0]];
+
+        //console.log(src);
+
+        if (!src) {
+            res.status(404).send(
+                "Unable to find a movie with the provided id."
+            );
+            return;
+        }
+
+        handleVideoRequest(req, res, src);
+    }
+);
+
+app.get(
+    "/show/:id/:season/:episode",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        const { id, season, episode } = req.params;
+
+        if (!id) {
+            res.status(400).send('Missing "id" query parameter.');
+            return;
+        }
+
+        if (!season) {
+            res.status(400).send("Missing the season number");
+            return;
+        }
+
+        if (!episode) {
+            res.status(400).send("Missing the episode number");
+            return;
+        }
+
+        let scrapeResult = await scrape_show(id, season, episode, req);
 
         if (!scrapeResult) {
             res.status(404).send("Media stream not found!");
