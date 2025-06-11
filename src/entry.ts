@@ -5,7 +5,7 @@ import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
 import { promises as fs } from "fs";
 
-import { scrape } from "./providers/scrape";
+import { scrape } from "./movie_providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();

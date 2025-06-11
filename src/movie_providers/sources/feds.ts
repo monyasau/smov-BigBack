@@ -1,7 +1,7 @@
 import { FebboxResponse, ScrapeResult } from "../../utils/types";
 
 export async function fetch_fed(id: string): Promise<ScrapeResult> {
-    let resp = await fetch(`${process.env.FEBBOX_BASE}${id}`, {
+    let resp = await fetch(`https://h2nexus.arlen.icu/cosmic/${id}`, {
         headers: {
             "ui-token": `${process.env.UI_TOKEN}`,
         },
