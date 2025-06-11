@@ -1,4 +1,3 @@
-import { Request, Response } from "express";
 import { USER_AGENT } from "../../globals";
 import { ScrapeResult } from "../../utils/types";
 

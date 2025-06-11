@@ -12,7 +12,6 @@ export async function fetch_primebox(
 ): Promise<ScrapeResult> {
     let external_ids = await getExternalIds(Number(id));
     let show_data = await getTvDetails(external_ids.id);
-    console.log(external_ids);
 
     let name = show_data.original_name;
     let resp = await fetch(
@@ -50,7 +49,6 @@ export async function scrape_all(
     episode: string,
     req: Request
 ): Promise<ScrapeResult> {
-    console.log("Hello, World!");
     let primebox_fetcher = () =>
         fetch_primebox(
             id,
