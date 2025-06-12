@@ -10,14 +10,7 @@ export async function scrape(
     req: Request
 ): Promise<ScrapeResult> {
     const fetch_xprime = () => sources.xprime(tmdb_id, season, episode, req);
-    const fetch_feds = async (): Promise<ScrapeResult> => {
-        const ua = req.headers["user-agent"] || "";
-        if (/firefox/i.test(ua)) {
-            return;
-        }
-
-        return sources.fetch_fed(tmdb_id, season, episode);
-    };
+    const fetch_feds = () => sources.fetch_fed(tmdb_id, season, episode);
 
     const fastest = firstTruthy([fetch_feds, fetch_xprime]);
 

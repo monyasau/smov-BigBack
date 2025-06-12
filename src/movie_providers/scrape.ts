@@ -13,14 +13,7 @@ export async function scrape(
             range: req.headers.range,
         });
     const fetchXprime = () => sources.xprime(tmdb_id, req);
-    const fetch_feds = (): Promise<ScrapeResult> => {
-        const ua = req.headers["user-agent"] || "";
-        if (/firefox/i.test(ua)) {
-            return Promise.reject(null);
-        }
-
-        return sources.fetch_fed(tmdb_id);
-    };
+    const fetch_feds = () => sources.fetch_fed(tmdb_id);
 
     const fastest = firstTruthy([fetchXprime, fetchEE3, fetch_feds]);
 

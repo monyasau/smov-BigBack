@@ -11,15 +11,10 @@ export async function fetch_primebox(
     let external_ids = await getExternalIds(Number(id));
     let movie_data = await getMovieDetails(external_ids.id);
 
-    console.log(movie_data);
-
     let name = movie_data.original_title;
-    console.log(name);
     let year = movie_data.release_date.slice(0, 4);
-    console.log(year);
     let imdb = external_ids.imdb_id;
     let url = `https://backend.xprime.tv/primebox?name=${name}&year=${year}&id=${id}&imdb=${imdb}`;
-    console.log(url);
     let resp = await fetch(url, {
         headers: {
             "User-Agent": User_Agent || USER_AGENT,

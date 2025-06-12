@@ -23,6 +23,8 @@ app.get("/watch", async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get(
+    // TODO: Make the stream also handle something like accept-codec headers,
+    // So we can prevent playback issues due to devices not supporting a certain codec.
     "/movie/:tmdb_id/",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
