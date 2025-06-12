@@ -18,7 +18,9 @@ export function pipe(req: Request, res: Response, src: globalThis.Response) {
 
     res.setHeader("content-type", "video/mp4");
 
-    res.removeHeader("Content-Disposition");
+    res.setHeader("Content-Disposition", "inline");
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
 
     res.status(src.status);
 
