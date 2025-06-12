@@ -1,13 +1,17 @@
 import { USER_AGENT } from "../../globals";
-import { ScrapeResult } from "../../utils/types";
+import {
+    MovieProviderContext,
+    ProviderContext,
+    ScrapeResult,
+} from "../../utils/types";
 
-async function fetch_movie(id: string, ee3_auth: string, User_Agent: string) {
+async function fetch_movie(ctx: MovieProviderContext, ee3_auth: string) {
     let token = await fetch(
         "https://borg.rips.cc/api/collections/users/auth-with-password?expand=lists_liked",
         {
             method: "POST",
             headers: {
-                "User-Agent": User_Agent,
+                ...(ctx.user_agent ? { "User-Agent": ctx.user_agent } : {}),
                 Origin: "https://ee3.me",
                 "Content-Type": "application/json",
             },
@@ -33,10 +37,10 @@ async function fetch_movie(id: string, ee3_auth: string, User_Agent: string) {
     });
 
     let movie_id = await fetch(
-        `https://borg.rips.cc/api/collections/movies/records?page=1&perPage=48&filter=tmdb_data.id%20~%20${id}`,
+        `https://borg.rips.cc/api/collections/movies/records?page=1&perPage=48&filter=tmdb_data.id%20~%20${ctx.id}`,
         {
             headers: {
-                "User-Agent": User_Agent,
+                ...(ctx.user_agent ? { "User-Agent": ctx.user_agent } : {}),
                 Authorization: token,
                 Origin: "https://ee3.me",
             },
@@ -61,7 +65,7 @@ async function fetch_movie(id: string, ee3_auth: string, User_Agent: string) {
 
     let key = await fetch(`https://borg.rips.cc/video/${movie_id}/key`, {
         headers: {
-            "User-Agent": User_Agent,
+            ...(ctx.user_agent ? { "User-Agent": ctx.user_agent } : {}),
             Authorization: token,
             Origin: "https://ee3.me",
         },
@@ -80,29 +84,23 @@ async function fetch_movie(id: string, ee3_auth: string, User_Agent: string) {
             return;
         }
     });
-
     return `${movie_id}?k=${key}`;
 }
 
-async function scrape(
-    tmdb_id: string,
-    options?: { user_agent?: string; range?: string }
-): Promise<ScrapeResult> {
+export async function scrape(ctx: ProviderContext): Promise<ScrapeResult> {
+    if (ctx.type !== "movie") return;
+
     if (!process.env.EE3_AUTH) {
         console.log("No EE3 auth key found");
         return;
     }
-    var mov_data = await fetch_movie(
-        tmdb_id,
-        process.env.EE3_AUTH,
-        options?.user_agent || USER_AGENT
-    );
+    var mov_data = await fetch_movie(ctx, process.env.EE3_AUTH);
 
     const res = await fetch(`https://borg.rips.cc/video/${mov_data}`, {
         headers: {
-            "User-Agent": options?.user_agent || USER_AGENT,
+            "User-Agent": ctx?.user_agent || USER_AGENT,
             Origin: "https://ee3.me",
-            Range: options?.range || "bytes=0-",
+            Range: ctx?.range || "bytes=0-",
         },
     });
 
@@ -112,5 +110,3 @@ async function scrape(
 
     return;
 }
-
-export = scrape;

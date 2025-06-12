@@ -4,8 +4,7 @@ import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
 
-import { scrape as scrape_mov } from "./movie_providers/scrape";
-import { scrape as scrape_show } from "./show_providers/scrape";
+import { fastest } from "./providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -13,6 +12,7 @@ dotenv.config();
 import path from "path";
 import { jsonLock, USER_AGENT } from "./globals";
 import { handleVideoRequest } from "./utils/stream_helpers";
+import { MovieProviderContext, ShowProviderContext } from "./utils/types";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,9 +23,14 @@ app.get("/watch", async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get(
+    "/availability/movie:tmdb_id/",
+    async (req: Request, res: Response): Promise<void> => {}
+);
+
+app.get(
     // TODO: Make the stream also handle something like accept-codec headers,
     // So we can prevent playback issues due to devices not supporting a certain codec.
-    "/movie/:tmdb_id/",
+    "/stream/movie/:tmdb_id/",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
         const { tmdb_id } = req.params;
@@ -35,7 +40,14 @@ app.get(
             return;
         }
 
-        let scrapeResult = await scrape_mov(tmdb_id, req);
+        let scrapeContext: MovieProviderContext = {
+            type: "movie",
+            id: +tmdb_id,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+
+        let scrapeResult = await fastest(scrapeContext);
 
         if (!scrapeResult) {
             res.status(404).send("Media stream not found!");
@@ -68,13 +80,13 @@ app.get(
 );
 
 app.get(
-    "/show/:id/:season/:episode",
+    "/stream/show/:tmdb_id/:season/:episode",
     limitConcurrentStreams,
     async (req: Request, res: Response): Promise<void> => {
-        const { id, season, episode } = req.params;
+        const { tmdb_id, season, episode } = req.params;
 
-        if (!id) {
-            res.status(400).send('Missing "id" query parameter.');
+        if (!tmdb_id) {
+            res.status(400).send('Missing "tmdb_id" query parameter.');
             return;
         }
 
@@ -88,7 +100,16 @@ app.get(
             return;
         }
 
-        let scrapeResult = await scrape_show(id, season, episode, req);
+        let scrapeContext: ShowProviderContext = {
+            type: "tv",
+            id: +tmdb_id,
+            season: +season,
+            episode: +episode,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+
+        let scrapeResult = await fastest(scrapeContext);
 
         if (!scrapeResult) {
             res.status(404).send("Media stream not found!");

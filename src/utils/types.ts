@@ -1,9 +1,41 @@
 export type ScrapeResult =
     | {
-          qualities: string[];
-          sources: Record<string, globalThis.Response | string>; // `Response` is from `fetch`
+          qualities: mediaQuality[];
+          sources: Partial<Record<mediaQuality, globalThis.Response | string>>; // `Response` is from `fetch`
       }
     | undefined;
+
+export type Scraper = (ctx: ProviderContext) => Promise<ScrapeResult>;
+
+export type mediaQuality =
+    | 360
+    | 480
+    | 720
+    | 1080
+    | "4K"
+    | "ORG"
+    | "auto"
+    | "unknown";
+
+export interface MovieProviderContext {
+    type: "movie";
+    id: number;
+    quality?: mediaQuality;
+    user_agent?: string;
+    range?: string;
+}
+
+export interface ShowProviderContext {
+    type: "tv" | "show";
+    id: number;
+    season: number;
+    episode: number;
+    quality?: mediaQuality;
+    user_agent?: string;
+    range?: string;
+}
+
+export type ProviderContext = MovieProviderContext | ShowProviderContext;
 
 export type VideoSource =
     | {
