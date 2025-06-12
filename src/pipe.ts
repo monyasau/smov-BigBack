@@ -14,7 +14,15 @@ export function pipe(req: Request, res: Response, src: globalThis.Response) {
         return;
     }
 
-    res.setHeaders(src.headers);
+    const contentLength = src.headers.get("content-length");
+    if (contentLength) {
+        res.setHeader("content-length", contentLength);
+    }
+
+    const contentRange = src.headers.get("content-range");
+    if (contentRange) {
+        res.setHeader("content-range", contentRange);
+    }
 
     res.setHeader("content-type", "video/mp4");
 
