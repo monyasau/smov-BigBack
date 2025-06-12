@@ -18,6 +18,8 @@ export function pipe(req: Request, res: Response, src: globalThis.Response) {
 
     res.setHeader("content-type", "video/mp4");
 
+    res.removeHeader("Content-Disposition");
+
     res.status(src.status);
 
     const reader = src.body.getReader();
