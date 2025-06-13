@@ -6,6 +6,7 @@ import {
     MovieProviderContext,
     ProviderContext,
     ScrapeResult,
+    VideoSource,
 } from "../../utils/types";
 
 async function fetch_movie(ctx: MovieProviderContext, ee3_auth: string) {
@@ -112,10 +113,13 @@ export async function scrape(
         new Headers(fetchHeaders)
     );
 
-    let sources: Partial<Record<mediaQuality, fetchInformation>> = {};
+    let sources: VideoSource = {};
     sources[quality] = {
-        url: `https://borg.rips.cc/video/${mov_data}`,
-        headers: fetchHeaders,
+        fetchInfo: {
+            url: `https://borg.rips.cc/video/${mov_data}`,
+            headers: fetchHeaders,
+        },
+        type: "mp4",
     };
 
     return {

@@ -1,16 +1,14 @@
-import { Request, Response } from "express";
 import { USER_AGENT } from "../../globals";
 import {
     getExternalIds,
     getMovieDetails,
     getTvDetails,
 } from "../../utils/tmdb";
-import firstTruthy from "../../utils/first_truthy";
 import {
-    fetchInformation,
     mediaQuality,
     ProviderContext,
     ScrapeResult,
+    VideoSource,
 } from "../../utils/types";
 
 const mapQuality = (quality: string): mediaQuality => {
@@ -39,17 +37,20 @@ const buildScrapeResult = (jsonResp: any): ScrapeResult => {
         .map(mapQuality)
         .filter((q: string) => q !== "unknown"); // filter out any unmapped/invalid values
 
-    const sources: Partial<Record<mediaQuality, fetchInformation>> = {};
+    const sources: VideoSource = {};
 
     for (const qualityStr of Object.keys(jsonResp.streams)) {
         const quality = mapQuality(qualityStr);
         if (quality !== "unknown") {
             sources[quality] = {
-                url: jsonResp.streams[qualityStr],
-                headers: new Headers({
-                    Origin: "https://xprime.tv",
-                    Referer: "https://xprime.tv",
-                }),
+                fetchInfo: {
+                    url: jsonResp.streams[qualityStr],
+                    headers: new Headers({
+                        Origin: "https://xprime.tv",
+                        Referer: "https://xprime.tv",
+                    }),
+                },
+                type: "mp4",
             };
         }
     }
@@ -87,12 +88,8 @@ export async function scrape(
         },
     });
 
-    console.log(resp);
-    console.log(resp.body);
-
     try {
         let json = await resp.json();
-        console.log(json);
         return buildScrapeResult(json);
     } catch (err) {
         return;

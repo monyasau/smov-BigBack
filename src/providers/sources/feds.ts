@@ -5,6 +5,7 @@ import {
     mediaQuality,
     ProviderContext,
     ScrapeResult,
+    VideoSource,
 } from "../../utils/types";
 
 export async function scrape(
@@ -33,14 +34,17 @@ export async function scrape(
         let json: FebboxResponse = await resp.json();
 
         let qualities: mediaQuality[] = [];
-        let sources: Record<string, { url: string }> = {};
+        let sources: VideoSource = {};
 
         json.streams.forEach((element) => {
             const q = mapQuality(element.quality);
             qualities.push(q);
 
-            sources[element.quality] = {
-                url: element.url,
+            sources[q] = {
+                fetchInfo: {
+                    url: element.url,
+                },
+                type: "mp4",
                 // headers or body can be added here if needed:
                 // headers: new Headers({ ... }),
                 // body: 'some-body-if-needed',

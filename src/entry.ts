@@ -10,13 +10,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import path from "path";
-import { jsonLock, USER_AGENT } from "./globals";
+import { USER_AGENT } from "./globals";
 import { handleVideoRequest } from "./utils/stream_helpers";
 import {
     mediaQuality,
     MovieProviderContext,
     ProviderContext,
-    ScrapeResult,
     ShowProviderContext,
 } from "./utils/types";
 import { mapQuality, unmapQuality } from "./utils/helpers";
@@ -107,7 +106,7 @@ app.get(
             );
             return;
         }
-        handleVideoRequest(req, res, src);
+        handleVideoRequest(req, res, src.fetchInfo);
     }
 );
 
@@ -197,7 +196,7 @@ app.get(
             );
             return;
         }
-        handleVideoRequest(req, res, src);
+        handleVideoRequest(req, res, src.fetchInfo);
     }
 );
 

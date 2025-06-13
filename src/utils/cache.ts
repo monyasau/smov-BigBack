@@ -55,14 +55,16 @@ export async function saveCache(
     // Serialize Headers inside fetchInformation entries
     const serializableSources: Record<string, any> = {};
     for (const [quality, info] of Object.entries(result.sources)) {
-        const entry: any = { url: info.url };
-        if (info.headers instanceof Headers) {
-            entry.headers = Object.fromEntries(info.headers.entries());
-        } else if (info.headers) {
-            entry.headers = info.headers;
+        const entry: any = { url: info.fetchInfo.url };
+        if (info.fetchInfo.headers instanceof Headers) {
+            entry.headers = Object.fromEntries(
+                info.fetchInfo.headers.entries()
+            );
+        } else if (info.fetchInfo.headers) {
+            entry.headers = info.fetchInfo.headers;
         }
-        if (info.body) {
-            entry.body = info.body;
+        if (info.fetchInfo.body) {
+            entry.body = info.fetchInfo.body;
         }
         serializableSources[quality] = entry;
     }

@@ -4,9 +4,13 @@ export interface fetchInformation {
     body?: BodyInit;
 }
 
+export type VideoSource = Partial<
+    Record<mediaQuality, { fetchInfo: fetchInformation; type: "mp4" }> // Type is so we can differentiate different videostreams, Like the stupid ahh M3U8 videostream
+>;
+
 export interface ScrapeResult {
     qualities: mediaQuality[];
-    sources: Partial<Record<mediaQuality, fetchInformation>>; // `Response` is from `fetch`
+    sources: VideoSource; // `Response` is from `fetch`
     cost: number; // So we can provide wichever source is the cheapest for us to provide.
 }
 
@@ -43,20 +47,6 @@ export interface ShowProviderContext {
 }
 
 export type ProviderContext = MovieProviderContext | ShowProviderContext;
-
-export type VideoSource =
-    | {
-          type: "link";
-          source: string; // a URL string
-      }
-    | {
-          type: "response";
-          source: globalThis.Response; // globalThis.Response
-      }
-    | {
-          type: "filepath";
-          source: string; // an absolute filepath
-      };
 
 interface Genre {
     id: number;
