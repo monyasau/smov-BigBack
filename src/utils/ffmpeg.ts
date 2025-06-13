@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { PassThrough } from "stream";
 import ffmpeg from "fluent-ffmpeg";
 import { mediaQuality } from "./types";
@@ -22,7 +21,18 @@ export async function probeMediaQuality(
 
     // Pipe the partial data into ffprobe
     const stream = new PassThrough();
-    res.body!.pipe(stream);
+    if (res.body) {
+        const reader = res.body.getReader();
+        async function push() {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                stream.write(value);
+            }
+            stream.end();
+        }
+        push();
+    }
 
     return new Promise<mediaQuality>((resolve, reject) => {
         ffmpeg(stream).ffprobe((err, info) => {
