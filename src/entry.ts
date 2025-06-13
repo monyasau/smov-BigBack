@@ -35,6 +35,8 @@ app.get(
     async (req: Request, res: Response): Promise<void> => {
         const { tmdb_id } = req.params;
 
+        res.setHeader("Access-Control-Allow-Origin", "*");
+
         let scrapeContext: MovieProviderContext = {
             type: "movie",
             id: +tmdb_id,
@@ -113,6 +115,8 @@ app.get(
     "/availability/show/:tmdb_id/:season/:episode",
     async (req: Request, res: Response): Promise<void> => {
         const { tmdb_id, season, episode } = req.params;
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
 
         let scrapeContext: ShowProviderContext = {
             type: "tv",
@@ -196,58 +200,6 @@ app.get(
         handleVideoRequest(req, res, src);
     }
 );
-
-/*
-app.get(
-    "/stream/show/:tmdb_id/:season/:episode",
-    limitConcurrentStreams,
-    async (req: Request, res: Response): Promise<void> => {
-        const { tmdb_id, season, episode } = req.params;
-
-        if (!tmdb_id) {
-            res.status(400).send('Missing "tmdb_id" query parameter.');
-            return;
-        }
-
-        if (!season) {
-            res.status(400).send("Missing the season number");
-            return;
-        }
-
-        if (!episode) {
-            res.status(400).send("Missing the episode number");
-            return;
-        }
-
-        let scrapeContext: ShowProviderContext = {
-            type: "tv",
-            id: +tmdb_id,
-            season: +season,
-            episode: +episode,
-            user_agent: req.headers["user-agent"],
-            range: req.headers.range,
-        };
-
-        let scrapeResult = await fastest(scrapeContext);
-
-        if (!scrapeResult) {
-            res.status(404).send("Media stream not found!");
-            return;
-        }
-
-        const src = scrapeResult.sources[scrapeResult.qualities[0]];
-
-        if (!src) {
-            res.status(404).send(
-                "Unable to find a movie with the provided id."
-            );
-            return;
-        }
-
-        handleVideoRequest(req, res, src);
-    }
-);
-*/
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
