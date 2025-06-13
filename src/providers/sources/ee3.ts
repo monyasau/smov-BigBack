@@ -1,5 +1,8 @@
 import { USER_AGENT } from "../../globals";
+import { probeMediaQuality } from "../../utils/ffmpeg";
 import {
+    fetchInformation,
+    mediaQuality,
     MovieProviderContext,
     ProviderContext,
     ScrapeResult,
@@ -87,7 +90,9 @@ async function fetch_movie(ctx: MovieProviderContext, ee3_auth: string) {
     return `${movie_id}?k=${key}`;
 }
 
-export async function scrape(ctx: ProviderContext): Promise<ScrapeResult> {
+export async function scrape(
+    ctx: ProviderContext
+): Promise<ScrapeResult | undefined> {
     if (ctx.type !== "movie") return;
 
     if (!process.env.EE3_AUTH) {
@@ -96,17 +101,26 @@ export async function scrape(ctx: ProviderContext): Promise<ScrapeResult> {
     }
     var mov_data = await fetch_movie(ctx, process.env.EE3_AUTH);
 
-    const res = await fetch(`https://borg.rips.cc/video/${mov_data}`, {
-        headers: {
-            "User-Agent": ctx?.user_agent || USER_AGENT,
-            Origin: "https://ee3.me",
-            Range: ctx?.range || "bytes=0-",
-        },
-    });
+    let fetchHeaders = new Headers();
 
-    if (res.status >= 200 && res.status < 300) {
-        return { qualities: ["unknown"], sources: { unknown: res } };
-    }
+    fetchHeaders.set("User-Agent", ctx?.user_agent || USER_AGENT);
+    fetchHeaders.set("Origin", "https://ee3.me");
+    fetchHeaders.set("Range", ctx?.range || "bytes=0-");
 
-    return;
+    const quality = await probeMediaQuality(
+        `https://borg.rips.cc/video/${mov_data}`,
+        new Headers(fetchHeaders)
+    );
+
+    let sources: Partial<Record<mediaQuality, fetchInformation>> = {};
+    sources[quality] = {
+        url: `https://borg.rips.cc/video/${mov_data}`,
+        headers: fetchHeaders,
+    };
+
+    return {
+        qualities: [quality],
+        sources: sources,
+        cost: 1,
+    };
 }

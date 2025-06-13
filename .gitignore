@@ -1,5 +1,6 @@
 node_modules
+build
 .env
 dist
-cache
+cache.sqlite
 tmp

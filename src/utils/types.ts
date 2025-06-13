@@ -1,11 +1,18 @@
-export type ScrapeResult =
-    | {
-          qualities: mediaQuality[];
-          sources: Partial<Record<mediaQuality, globalThis.Response | string>>; // `Response` is from `fetch`
-      }
-    | undefined;
+export interface fetchInformation {
+    url: string;
+    headers?: HeadersInit;
+    body?: BodyInit;
+}
 
-export type Scraper = (ctx: ProviderContext) => Promise<ScrapeResult>;
+export interface ScrapeResult {
+    qualities: mediaQuality[];
+    sources: Partial<Record<mediaQuality, fetchInformation>>; // `Response` is from `fetch`
+    cost: number; // So we can provide wichever source is the cheapest for us to provide.
+}
+
+export type Scraper = (
+    ctx: ProviderContext
+) => Promise<ScrapeResult | undefined>;
 
 export type mediaQuality =
     | 360

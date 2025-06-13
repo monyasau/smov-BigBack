@@ -1,23 +1,20 @@
 import { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import { pipe } from "../pipe";
+import { fetchInformation } from "./types";
 
 export async function handleVideoRequest(
     req: Request,
     res: Response,
-    src: string | globalThis.Response
+    src: fetchInformation
 ): Promise<void> {
-    if (typeof src === "string") {
-        pipe(
-            req,
-            res,
-            await fetch(src, {
-                headers: { Range: req.headers?.range || "bytes=0-" },
-            })
-        );
-        return;
-    }
-
-    pipe(req, res, src);
+    let headers = new Headers(src.headers);
+    headers.set("Range", req.headers.range || "bytes=0-");
+    pipe(
+        req,
+        res,
+        await fetch(src.url, {
+            headers,
+        })
+    );
+    return;
 }

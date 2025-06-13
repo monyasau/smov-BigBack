@@ -4,7 +4,7 @@ import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
 
-import { fastest } from "./providers/scrape";
+import { allScrapes, fastest } from "./providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -12,7 +12,15 @@ dotenv.config();
 import path from "path";
 import { jsonLock, USER_AGENT } from "./globals";
 import { handleVideoRequest } from "./utils/stream_helpers";
-import { MovieProviderContext, ShowProviderContext } from "./utils/types";
+import {
+    mediaQuality,
+    MovieProviderContext,
+    ProviderContext,
+    ScrapeResult,
+    ShowProviderContext,
+} from "./utils/types";
+import { mapQuality, unmapQuality } from "./utils/helpers";
+import { fromCache, saveCache } from "./utils/cache";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,22 +31,9 @@ app.get("/watch", async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get(
-    "/availability/movie:tmdb_id/",
-    async (req: Request, res: Response): Promise<void> => {}
-);
-
-app.get(
-    // TODO: Make the stream also handle something like accept-codec headers,
-    // So we can prevent playback issues due to devices not supporting a certain codec.
-    "/stream/movie/:tmdb_id/",
-    limitConcurrentStreams,
+    "/availability/movie/:tmdb_id", // WIP; DONT USE YET
     async (req: Request, res: Response): Promise<void> => {
         const { tmdb_id } = req.params;
-
-        if (!tmdb_id) {
-            res.status(400).send('Missing "tmdb_id" query parameter.');
-            return;
-        }
 
         let scrapeContext: MovieProviderContext = {
             type: "movie",
@@ -47,38 +42,162 @@ app.get(
             range: req.headers.range,
         };
 
-        let scrapeResult = await fastest(scrapeContext);
+        let qualities: string[] = [];
+
+        const cached = await fromCache(scrapeContext);
+        if (cached) {
+            cached.qualities.forEach((quality) => {
+                qualities.push(unmapQuality(quality));
+            });
+            res.status(200).send(qualities);
+            return;
+        }
+
+        if (!tmdb_id) {
+            res.status(400).send('Missing "tmdb_id" query parameter.');
+            return;
+        }
+
+        const scrapeResult = await allScrapes(scrapeContext);
+
+        console.log(scrapeResult);
 
         if (!scrapeResult) {
-            res.status(404).send("Media stream not found!");
+            res.status(404).send("Media not found");
             return;
         }
 
-        /*const quality = requested_quality || scrapeResult.qualities[0];
+        saveCache(scrapeContext, scrapeResult);
 
-        if (!scrapeResult.qualities.includes(quality)) {
+        scrapeResult.qualities.forEach((quality) => {
+            qualities.push(unmapQuality(quality));
+        });
+
+        res.status(200).send(qualities);
+    }
+);
+
+app.get(
+    "/stream/movie/:tmdb_id/:quality",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, quality } = req.params;
+        let movieQuality: mediaQuality = mapQuality(quality);
+
+        const query: ProviderContext = { type: "movie", id: +tmdb_id };
+        const cached = await fromCache(query);
+
+        if (!cached) {
             res.status(404).send(
-                `Unable to find requested quality. We currently only have the following qualities: ${scrapeResult.qualities}`
+                "Unable to find source in cache, Please fetch from /availability/movie/:tmdb_id first."
             );
             return;
         }
-        */
 
-        const src = scrapeResult.sources[scrapeResult.qualities[0]];
+        if (movieQuality === "auto") {
+            movieQuality = cached.qualities[cached.qualities.length - 1];
+        }
 
-        //console.log(src);
-
+        const src = cached.sources[movieQuality];
         if (!src) {
             res.status(404).send(
-                "Unable to find a movie with the provided id."
+                "Unable to find a movie source with the requested quality."
             );
             return;
         }
-
         handleVideoRequest(req, res, src);
     }
 );
 
+app.get(
+    "/availability/show/:tmdb_id/:season/:episode",
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, season, episode } = req.params;
+
+        let scrapeContext: ShowProviderContext = {
+            type: "tv",
+            id: +tmdb_id,
+            season: +season,
+            episode: +episode,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+
+        let qualities: string[] = [];
+
+        const cached = await fromCache(scrapeContext);
+        if (cached) {
+            cached.qualities.forEach((quality) => {
+                qualities.push(unmapQuality(quality));
+            });
+            res.status(200).send(qualities);
+            return;
+        }
+
+        if (!tmdb_id) {
+            res.status(400).send('Missing "tmdb_id" query parameter.');
+            return;
+        }
+
+        const scrapeResult = await allScrapes(scrapeContext);
+
+        console.log(scrapeResult);
+
+        if (!scrapeResult) {
+            res.status(404).send("Media not found");
+            return;
+        }
+
+        saveCache(scrapeContext, scrapeResult);
+
+        scrapeResult.qualities.forEach((quality) => {
+            qualities.push(unmapQuality(quality));
+        });
+
+        res.status(200).send(qualities);
+    }
+);
+
+app.get(
+    "/stream/show/:tmdb_id/:season/:episode/:quality",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, season, episode, quality } = req.params;
+        let movieQuality: mediaQuality = mapQuality(quality);
+
+        let query: ShowProviderContext = {
+            type: "tv",
+            id: +tmdb_id,
+            season: +season,
+            episode: +episode,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+        const cached = await fromCache(query);
+
+        if (!cached) {
+            res.status(404).send(
+                "Unable to find source in cache, Please fetch from /availability/movie/:tmdb_id first."
+            );
+            return;
+        }
+
+        if (movieQuality === "auto") {
+            movieQuality = cached.qualities[cached.qualities.length - 1];
+        }
+
+        const src = cached.sources[movieQuality];
+        if (!src) {
+            res.status(404).send(
+                "Unable to find a movie source with the requested quality."
+            );
+            return;
+        }
+        handleVideoRequest(req, res, src);
+    }
+);
+
+/*
 app.get(
     "/stream/show/:tmdb_id/:season/:episode",
     limitConcurrentStreams,
@@ -116,19 +235,7 @@ app.get(
             return;
         }
 
-        /*const quality = requested_quality || scrapeResult.qualities[0];
-
-        if (!scrapeResult.qualities.includes(quality)) {
-            res.status(404).send(
-                `Unable to find requested quality. We currently only have the following qualities: ${scrapeResult.qualities}`
-            );
-            return;
-        }
-        */
-
         const src = scrapeResult.sources[scrapeResult.qualities[0]];
-
-        //console.log(src);
 
         if (!src) {
             res.status(404).send(
@@ -140,6 +247,7 @@ app.get(
         handleVideoRequest(req, res, src);
     }
 );
+*/
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
