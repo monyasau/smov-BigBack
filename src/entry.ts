@@ -4,14 +4,22 @@ import { URL } from "url";
 import { Readable } from "stream";
 import { limitConcurrentStreams } from "./limiter";
 
-import { scrape } from "./providers/scrape";
+import { allScrapes, fastest } from "./providers/scrape";
 
 import dotenv from "dotenv";
 dotenv.config();
 
-import { pipe } from "./pipe";
 import path from "path";
 import { USER_AGENT } from "./globals";
+import { handleVideoRequest } from "./utils/stream_helpers";
+import {
+    mediaQuality,
+    MovieProviderContext,
+    ProviderContext,
+    ShowProviderContext,
+} from "./utils/types";
+import { mapQuality, unmapQuality } from "./utils/helpers";
+import { fromCache, saveCache } from "./utils/cache";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,31 +30,173 @@ app.get("/watch", async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get(
-    "/movie",
-    limitConcurrentStreams,
+    "/availability/movie/:tmdb_id", // WIP; DONT USE YET
     async (req: Request, res: Response): Promise<void> => {
-        const tmdb_id = req.query.tmdb_id as string;
+        const { tmdb_id } = req.params;
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
+
+        let scrapeContext: MovieProviderContext = {
+            type: "movie",
+            id: +tmdb_id,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+
+        let qualities: string[] = [];
+
+        const cached = await fromCache(scrapeContext);
+        if (cached) {
+            cached.qualities.forEach((quality) => {
+                qualities.push(unmapQuality(quality));
+            });
+            res.status(200).send(qualities);
+            return;
+        }
 
         if (!tmdb_id) {
             res.status(400).send('Missing "tmdb_id" query parameter.');
             return;
         }
 
-        let src = await scrape(tmdb_id, req);
+        const scrapeResult = await allScrapes(scrapeContext);
 
-        if (!src) {
+        console.log(scrapeResult);
+
+        if (!scrapeResult) {
+            res.status(404).send("Media not found");
+            return;
+        }
+
+        saveCache(scrapeContext, scrapeResult);
+
+        scrapeResult.qualities.forEach((quality) => {
+            qualities.push(unmapQuality(quality));
+        });
+
+        res.status(200).send(qualities);
+    }
+);
+
+app.get(
+    "/stream/movie/:tmdb_id/:quality",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, quality } = req.params;
+        let movieQuality: mediaQuality = mapQuality(quality);
+
+        const query: ProviderContext = { type: "movie", id: +tmdb_id };
+        const cached = await fromCache(query);
+
+        if (!cached) {
             res.status(404).send(
-                "Unable to find a movie with the provided id."
+                "Unable to find source in cache, Please fetch from /availability/movie/:tmdb_id first."
             );
             return;
         }
 
-        if (typeof src === "string") {
-            res.redirect(302, src);
+        if (movieQuality === "auto") {
+            movieQuality = cached.qualities[cached.qualities.length - 1];
+        }
+
+        const src = cached.sources[movieQuality];
+        if (!src) {
+            res.status(404).send(
+                "Unable to find a movie source with the requested quality."
+            );
+            return;
+        }
+        handleVideoRequest(req, res, src.fetchInfo);
+    }
+);
+
+app.get(
+    "/availability/show/:tmdb_id/:season/:episode",
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, season, episode } = req.params;
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
+
+        let scrapeContext: ShowProviderContext = {
+            type: "tv",
+            id: +tmdb_id,
+            season: +season,
+            episode: +episode,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+
+        let qualities: string[] = [];
+
+        const cached = await fromCache(scrapeContext);
+        if (cached) {
+            cached.qualities.forEach((quality) => {
+                qualities.push(unmapQuality(quality));
+            });
+            res.status(200).send(qualities);
             return;
         }
 
-        pipe(req, res, src);
+        if (!tmdb_id) {
+            res.status(400).send('Missing "tmdb_id" query parameter.');
+            return;
+        }
+
+        const scrapeResult = await allScrapes(scrapeContext);
+
+        console.log(scrapeResult);
+
+        if (!scrapeResult) {
+            res.status(404).send("Media not found");
+            return;
+        }
+
+        saveCache(scrapeContext, scrapeResult);
+
+        scrapeResult.qualities.forEach((quality) => {
+            qualities.push(unmapQuality(quality));
+        });
+
+        res.status(200).send(qualities);
+    }
+);
+
+app.get(
+    "/stream/show/:tmdb_id/:season/:episode/:quality",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        const { tmdb_id, season, episode, quality } = req.params;
+        let movieQuality: mediaQuality = mapQuality(quality);
+
+        let query: ShowProviderContext = {
+            type: "tv",
+            id: +tmdb_id,
+            season: +season,
+            episode: +episode,
+            user_agent: req.headers["user-agent"],
+            range: req.headers.range,
+        };
+        const cached = await fromCache(query);
+
+        if (!cached) {
+            res.status(404).send(
+                "Unable to find source in cache, Please fetch from /availability/movie/:tmdb_id first."
+            );
+            return;
+        }
+
+        if (movieQuality === "auto") {
+            movieQuality = cached.qualities[cached.qualities.length - 1];
+        }
+
+        const src = cached.sources[movieQuality];
+        if (!src) {
+            res.status(404).send(
+                "Unable to find a movie source with the requested quality."
+            );
+            return;
+        }
+        handleVideoRequest(req, res, src.fetchInfo);
     }
 );
 

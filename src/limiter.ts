@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from "express";
 
 const maxStreams: number = 250;
+const maxUserStreams: number = 4;
 const activeStreams: { [key: string]: number } = {};
 var totalStreams: number = 0;
 
@@ -20,7 +21,7 @@ export function limitConcurrentStreams(
 
         if (!activeStreams[userIP]) activeStreams[userIP] = 0;
 
-        if (activeStreams[userIP] >= 2) {
+        if (activeStreams[userIP] >= maxUserStreams) {
             res.status(429).send(
                 "Too many concurrent streams, are yo tryna scrape?"
             );
