@@ -20,6 +20,7 @@ import {
 } from "./utils/types";
 import { mapQuality, unmapQuality } from "./utils/helpers";
 import { fromCache, saveCache } from "./utils/cache";
+import { proxyM3U8, proxyTs } from "./services/m3u8Proxy";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -197,6 +198,46 @@ app.get(
             return;
         }
         handleVideoRequest(req, res, src.fetchInfo);
+    }
+);
+
+app.get(
+    "/m3u8-proxy",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        let headers: Record<string, string> = {};
+        try {
+            headers = JSON.parse(req.query.headers as string || "{}");
+        } catch (e: any) {
+            res.status(500).send(e.message);
+            return;
+        }
+        const url = req.query.url as string;
+        if (!url) {
+            res.status(400).send("Missing URL parameter");
+            return;
+        }
+        await proxyM3U8(url, headers, res);
+    }
+);
+
+app.all(
+    "/ts-proxy",
+    limitConcurrentStreams,
+    async (req: Request, res: Response): Promise<void> => {
+        let headers: Record<string, string> = {};
+        try {
+            headers = JSON.parse(req.query.headers as string || "{}");
+        } catch (e: any) {
+            res.status(500).send(e.message);
+            return;
+        }
+        const url = req.query.url as string;
+        if (!url) {
+            res.status(400).send("Missing URL parameter");
+            return;
+        }
+        await proxyTs(url, headers, req, res);
     }
 );
 
